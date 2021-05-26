@@ -1,128 +1,274 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  FlatList,
+  TextInput,
+  TouchableOpacity,
   StyleSheet,
   Text,
   View,
   Button,
-  TextInput,
-  Modal,
-  Pressable,
-  Alert,
 } from 'react-native';
-import Constants from 'expo-constants';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 
-export default function App() {
+
+var historyList = [];
+var index = 0;
+
+const HomeScreen = ({ navigation}) => {
   const [price, setPrice] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [discountedPrice, setDiscountPrice] = useState(0);
   const [youSave, setYouSave] = useState(0);
-
-  const [viewModal, setViewModal] = useState(false);
-  const [modalText, setModalText] = useState('hello');
+  const [saveButton, setSaveButton] = useState(true);
+  const [clear, setClear] = useState(false);
 
   const calculateDiscount = () => {
-    var saved = price * (discount / 100);
+    var saved = price * ((discount * 10 ) / 100);
     setYouSave(saved);
     setDiscountPrice(price - saved);
 
-    setViewModal(true);
+    setSaveButton(false);
+  };
+
+  const addToHistory = () => {
+    if (price > 0) {
+      var data = {
+        key: index,
+        dataOriginalPrice: price,
+        dataDiscount: discount,
+        dataDiscountedPrice: discountedPrice,
+        dataUsave: youSave,
+      };
+
+      index = index + 1;
+
+      historyList.push(data);
+      console.log(historyList);
+      setPrice(0);
+      setDiscount(0);
+      setDiscountPrice(0);
+      setYouSave(0);
+      setSaveButton(true);
+    }
   };
 
   return (
-    <View>
+    <View style={styles.container}>
+      <Text style={styles.homeHeader}>Discount App</Text>
+
       <TextInput
         style={styles.input}
+        keyboardType="decimal-pad"
         placeholder="Enter Price: "
-        onChangeText={(newPrice) => setPrice(newPrice)}
+         value = {price}
+        onChangeText={(newPrice) => {
+          if (newPrice > -1 && newPrice != ' ') {
+            setPrice(newPrice);
+          }
+        }}
       />
+
       <TextInput
         style={styles.input}
+        keyboardType="decimal-pad"
         placeholder="Enter Discount Percentage: "
-        onChangeText={(newDiscount) => setDiscount(newDiscount)}
+        value = {discount}
+        onChangeText={(newDiscount) => {
+          {
+            if (newDiscount > -1 && newDiscount != ' ') {
+              setDiscount(newDiscount);
+            }
+          }
+          calculateDiscount();
+        }}
       />
-      <View
-        style={{
-          width: 80,
-          marginLeft: 12,
-        }}>
-        <Button title="Enter" color="blue" onPress= {calculateDiscount}/>
+
+      <View style={{ flexDirection: 'row' }}>
+        <Text style={styles.homeFields}>You Save: </Text>
+        <Text style={styles.homeFields}>{youSave}</Text>
       </View>
-      <View>
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={viewModal}
-          onRequestClose={() => {
-            Alert.alert('Modal has been closed.');
-            setViewModal(!viewModal);
-          }}>
-          <View style={styles.centeredView}>
-            <View style={styles.modalView}>
-              <Text style={styles.modalText}>
-                Price After Discount: {discountedPrice}
-              </Text>
-              <Text style={styles.modalText}>
-                You Save: {youSave}
-              </Text>
-              <Pressable style={[styles.buttonModal, styles.buttonClose]}>
-                <Text style={styles.textStyle}>newGame</Text>
-              </Pressable>
+
+      <View style={{ flexDirection: 'row', marginBottom: 50 }}>
+        <Text style={styles.homeFields}>Final Price: </Text>
+        <Text style={styles.homeFields}>{discountedPrice}</Text>
+      </View>
+
+      <TouchableOpacity
+        disabled={saveButton}
+        style={
+
+          saveButton == true ? styles.disabledHomeButton : styles.homeButton
+        }
+        onPress={addToHistory}>
+        <Text style={styles.homeButtonText}>Save Calculation</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.homeButton}
+        onPress={() => navigation.navigate('history')}>
+        <Text style={styles.homeButtonText}>View History</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const history = ({ navigation }) => {
+  const [dataList, setDataList] = useState(historyList);
+
+    navigation.setOptions({
+      headerRight: () => (
+        <Button
+          title="CLEAR"
+          color="red"
+          onPress={clearHistory}
+        />
+      ),
+    });
+
+    const clearHistory = () => {
+      const emptyArr = [];
+      setDataList(emptyArr);
+
+      console.log(dataList);
+
+      historyList = [];
+      console.log(dataList);
+    }
+
+    const removeItem = (element) => {
+    var newlist = historyList.filter((listitem) => listitem.key != element.key);
+    historyList = newlist;
+    setDataList(newlist);
+    }
+
+  return (
+    <View style={styles.list}>
+      <FlatList
+        data={dataList}
+        renderItem={({ item }) => (
+          <View style={styles.item}>
+            <Text style={styles.itemText}>
+              Discounted Price: {item.dataDiscountedPrice}
+            </Text>
+            <Text style={styles.subitemText}>
+              Original Price: {item.dataOriginalPrice}
+            </Text>
+            <Text style={styles.subitemText}>
+              Discount: {item.dataDiscount}%
+            </Text>
+            <Text style={styles.subitemText}>
+              Amount Saved: {item.dataUsave}
+            </Text>
+            <View style = {{height: 10, width: 40, marginLeft: 280, marginBottom: 20}}>
+            <Button title = "x"  color = "gray"  onPress={() => removeItem(item)} />
             </View>
           </View>
-        </Modal>
-      </View>
+        )}
+      />
     </View>
+  );
+};
+
+export default function App() {
+  const Stack = createStackNavigator();
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#F5B7B1',
+            justifyContent: 'center',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            color: 'white',
+            fontWeight: 'bold',
+          },
+        }}>
+        <Stack.Screen
+          options={{ headerShown: false }}
+          name="HomeScreen"
+          component={HomeScreen}
+        />
+        <Stack.Screen name="history"  component={history} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    paddingTop: Constants.statusBarHeight,
-    backgroundColor: '#ecf0f1',
-    padding: 8,
+    alignItems: 'center',
+    backgroundColor: '#D5F5E3',
+  },
+
+  homeHeader: {
+    color: '#F5B7B1',
+    fontWeight: 'bold',
+    fontSize: 43,
+    marginTop: 100,
+    marginBottom: 50,
+  },
+  homeFields: {
+    color: '#F5B7B1',
+    fontWeight: 'bold',
+    fontSize: 30,
   },
   input: {
-    height: 40,
-    margin: 12,
-    borderWidth: 1,
+    backgroundColor: 'white',
+    height: 60,
+    width: '80%',
+    marginBottom: 20,
+    color:'#F5B7B1',
+    fontWeight: "bold",
+    fontSize: 20
+
   },
-  buttonModal: {
-    borderRadius: 20,
-    padding: 10,
-    elevation: 2,
+  homeButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5B7B1',
+    height: 80,
+    width: '75%',
+    marginBottom: 20,
   },
-  buttonOpen: {
-    backgroundColor: '#F194FF',
+  disabledHomeButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fadad7',
+    height: 80,
+    width: '75%',
+    marginBottom: 20,
   },
-  buttonClose: {
-    backgroundColor: '#2196F3',
-  },
-  textStyle: {
+  homeButtonText: {
     color: 'white',
     fontWeight: 'bold',
-    textAlign: 'center',
+    fontSize: 20,
   },
-  modalText: {
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  centeredView: {
-    flex: 1,
+  item: {
     justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 22,
-  },
-  modalView: {
-    margin: 20,
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 35,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    height: 150,
+    width: '100%',
+    marginBottom: 20,
   },
+  itemText: {
+    color: '#F5B7B1',
+    fontSize: 20,
+    marginLeft: 10,
+  },
+  subitemText:{
+    fontSize: 15,
+    marginLeft: 10,
+  },
+  list: {
+    flex: 1,
+    paddingTop: 22,
+    backgroundColor: '#D5F5E3',
+  },
+
+
 });
